@@ -32,5 +32,5 @@ while if you want to deploy the application on a server, point to the folder tha
 model = await tf.loadGraphModel('./model/model.json');
 ```
 
-### Example of use
-
+## Example of use
+![Y](https://user-images.githubusercontent.com/52381926/108563898-8d23e200-7302-11eb-94a5-2c15faca0273.png)
