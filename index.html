@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>ARMedia</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.1.0/dist/tf.min.js"></script>
+  <link rel="stylesheet" href="./css/index.css">
+  <script type="module">
+    //import * as tf from '@tensorflow/tfjs'; //if you use node.js
+    const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y'];
+
+    var frame_rate = 1; //parameter to set the frame rate of prediction
+    var prev = 0;
+    var time_elapsed = 0;
+
+    //Import the model from a local http-server (started with: http-server --cors) OR from the folder inside SURGE :)
+    var model;
+    (async () => {
+      //model = await tf.loadGraphModel('http://localhost:8080/model.json'); //A) http-server
+      //model.summary();
+      model = await tf.loadGraphModel('./model/model.json');                 //B) deploy, e.g. with surge      
+    })();
+
+    if ('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices) {
+      console.log("mediaDevices WORKS :)")
+    }
+
+    //JavaScript code to use MediaPipe
+    var videoElement = document.querySelector("#videoElement");
+    //const videoElement = document.getElementsByClassName('input_video')[0];
+    if (navigator.mediaDevices.getUserMedia) { //default lines of code to access the webcam from the browser
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function (stream) {
+          video.srcObject = stream;
+        })
+        .catch(function (err0r) {
+          console.log("Something went wrong!");
+        });
+    }
+
+    const canvasElement = document.getElementsByClassName('output_canvas')[0];
+    const canvasCtx = canvasElement.getContext('2d');
+
+    function onResults(results) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+      //canvasCtx.font = "30px Comic Sans MS"; //label predicted font
+      //canvasCtx.fillStyle = "red";
+      //canvasCtx.textAlign = "center";
+
+      if (results.multiHandLandmarks) {
+        for (const landmarks of results.multiHandLandmarks) {
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
+          drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
+
+          time_elapsed = (new Date()).getTime() / 1000 - prev;
+          //console.log(time_elapsed);
+          if (time_elapsed > 1. / frame_rate) {
+            prev = (new Date()).getTime() / 1000;
+
+            var land = []; //array that contains the 21 points of the hand
+            for (var i = 0; i < 21; i++) {
+              land.push(landmarks[i].x);
+              land.push(landmarks[i].y);
+              land.push(landmarks[i].z);
+            }
+
+            const input = tf.tensor(land).reshape([-1, 63]);  //conversion from js array to tensor
+            const prediction = model.predict(input);          //prediction            
+            const arr = Array.from(prediction.dataSync());    //conversion from tensor to js array (contains the probabilities of the output classes)
+            //console.log(arr);
+
+            const indexOfMaxValue = arr.indexOf(Math.max(...arr)); //most likelihood class
+
+            //canvasCtx.fillText(labels[indexOfMaxValue], 30, 30);
+            console.log("Label predicted: ", labels[indexOfMaxValue])
+            document.getElementById("label").innerHTML = labels[indexOfMaxValue];
+          }
+        }
+      }
+
+      canvasCtx.restore();
+    }
+
+    const hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+    });
+    hands.setOptions({
+      maxNumHands: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    hands.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 1280,
+      height: 720
+    });
+    camera.start();
+
+  </script>
+
+</head>
+
+<body>
+  <div class="container">
+    <video hidden autoplay="true" id="videoElement"></video>
+    <canvas class="output_canvas"></canvas>
+    <span id="label"></span>
+
+    <!--Script to resize the window in a way that the format 16:9 is preserved-->
+    <script>
+      (function () {
+        var htmlCanvas = document.getElementsByClassName('output_canvas')[0];
+        var context = htmlCanvas.getContext('2d');
+
+        initialize(); // Start listening to resize events and draw canvas.
+
+        function initialize() {
+          // Register an event listener to call the resizeCanvas() function each time the window is resized.
+          window.addEventListener('resize', resizeCanvas, false);
+          // Draw canvas border for the first time.
+          resizeCanvas();
+        }
+
+        // Display custom canvas. The border automatically resizes along with the browser window.
+        function redraw() {
+          context.strokeStyle = 'blue';
+          context.lineWidth = '5';
+          //If the aspect ratio is larger than 16/9 than fix the height, otherwise fix the width
+          //in order to preserve the aspect ratio of 16/9 without scrolling the page
+          if (window.innerWidth >= 16 / 9 * window.innerHeight) {
+            //var x_start = (window.innerWidth - 16/9 * window.innerHeight)/2
+            context.strokeRect(0, 0, 16 / 9 * window.innerHeight, window.innerHeight);
+          } else {
+            //var y_start = (window.innerHeight - 9/16 * window.innerWidth)/2;
+            context.strokeRect(0, 0, window.innerWidth, 9 / 16 * window.innerWidth);
+          }
+        }
+
+        // Runs each time the DOM window resize event fires. Resets the canvas dimensions to match window,
+        // then draws the new borders accordingly.
+        function resizeCanvas() {
+          if (window.innerWidth >= 16 / 9 * window.innerHeight) {
+            htmlCanvas.width = 16 / 9 * window.innerHeight;
+            htmlCanvas.height = window.innerHeight;
+          } else {
+            htmlCanvas.width = window.innerWidth;
+            htmlCanvas.height = 9 / 16 * window.innerWidth;
+          }
+
+          redraw();
+        }
+      })();
+    </script>
+  </div>
+</body>
+
+</html>
