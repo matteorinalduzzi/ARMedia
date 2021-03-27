@@ -21,7 +21,7 @@
     //Import the model from a local http-server (started with: http-server --cors) OR from the folder inside SURGE :)
     var model;
     (async () => {
-      //model = await tf.loadGraphModel('http://localhost:8080/model.json'); //A) http-server
+      //model = await tf.loadGraphModel('http://localhost:8080/model.json'); //A) http-server, LOCAL mode
       //model.summary();
       model = await tf.loadGraphModel('./model/model.json');                 //B) deploy, e.g. with surge      
     })();
@@ -130,8 +130,23 @@
         function initialize() {
           // Register an event listener to call the resizeCanvas() function each time the window is resized.
           window.addEventListener('resize', resizeCanvas, false);
+
+          // 1. Create the button
+          var button = document.createElement("button");
+          button.innerHTML = "Click here to see examples";
+          // 2. Append somewhere
+          //var body = document.getElementsByTagName("body")[0];
+          var body = document.getElementsByClassName("container")[0];
+          body.appendChild(button);
+          // 3. Add event handler
+          button.addEventListener("click", function () {
+            //alert("did something");
+            window.open('./alphabet.html');
+          });
+
           // Draw canvas border for the first time.
           resizeCanvas();
+
         }
 
         // Display custom canvas. The border automatically resizes along with the browser window.
@@ -161,6 +176,15 @@
           }
 
           redraw();
+
+          // 4. Get the button and update position
+          var button = document.getElementsByTagName("button")[0];
+          var butInfo = button.getBoundingClientRect();
+          height = htmlCanvas.height - butInfo.height;
+          width = htmlCanvas.width - butInfo.width;
+          button.style.marginTop = "" + height + "px";
+          button.style.marginLeft = "" + width + "px";
+          /*button.style.marginLeft = "" + htmlCanvas.width/2 + "px"*/
         }
       })();
     </script>

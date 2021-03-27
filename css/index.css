@@ -17,8 +17,22 @@ html, body {
     left:20px; top:20px;
     border: 3px solid #ad2121; 
     color: #ad2121;
-    font-size: 4em; 
+    font-size: 5em; 
     font-weight: bold; 
     position: absolute; 
     z-index: 3;
+}
+
+button {
+    /*line-height: 20px;*/
+    font-size: 1.5em;
+    font-weight: bold;
+    background: rgb(250, 123, 114);
+    border: none;
+    z-index: 3;
+    position: absolute;
+}
+
+button:hover {
+    background: red;
 }
